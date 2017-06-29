@@ -1,0 +1,6 @@
+git+git://github.com/martinblech/xmltodict@master
+xmljson
+ordereddict
+xmltodict
+lxml
+progressbar
