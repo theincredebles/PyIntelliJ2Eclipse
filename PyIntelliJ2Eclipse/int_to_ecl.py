@@ -1,5 +1,4 @@
 import fnmatch
-import json
 import os
 import ordereddict
 import sys
@@ -8,12 +7,13 @@ from xmljson import badgerfish as bf
 from lxml.html import Element, tostring
 from progressbar import ProgressBar, Bar, Percentage, ETA
 
-output_dict = {
-    "classpath": []
-}
+def generate_empty_dict():
+    return {
+        "classpath": []
+    }
 
 
-def addSrcType(intellij_dict):
+def addSrcType(intellij_dict, output_dict):
     for src in intellij_dict['module']['component']['content'].get('sourceFolder', {}):
         src_tmp = {
         "classpathentry":{
@@ -23,8 +23,9 @@ def addSrcType(intellij_dict):
         if type(src)==ordereddict:
             src_tmp['classpathentry']['@path'] = src['@url'].replace('file://$MODULE_DIR$', '')
             output_dict['classpath'].append(src_tmp)
+    return output_dict
 
-def addCombinedRules(intellij_dict):
+def addCombinedRules(intellij_dict, output_dict):
     for order_entry in intellij_dict['module']['component']['orderEntry']:
         if order_entry['@type'] != 'module':
             continue
@@ -37,9 +38,9 @@ def addCombinedRules(intellij_dict):
         }
         src_tmp['classpathentry']['@path'] = '/' + order_entry['@module-name']
         output_dict['classpath'].append(src_tmp)
+    return output_dict
 
-
-def addConType(intellij_dict):
+def addConType(intellij_dict, output_dict):
     for order_entry in intellij_dict['module']['component']['orderEntry']:
         if order_entry['@type'] != 'library':
             continue
@@ -51,7 +52,7 @@ def addConType(intellij_dict):
         }
         src_tmp['classpathentry']['@path'] = "org.eclipse.jdt.USER_LIBRARY/" + order_entry['@name']
         output_dict['classpath'].append(src_tmp)
-
+    return output_dict
 
 def main():
     absolute_folder = sys.argv[1]
@@ -65,6 +66,7 @@ def main():
     pbar = ProgressBar(widgets=['Processing :', Percentage(), ' ', Bar(), ' ', ETA()], maxval=len(fileList)).start()
     fcount = 0
     for fileName in fileList:
+        output_dict = generate_empty_dict()
         eclipse_file_path = os.path.dirname(fileName)+'/.classpath'
         with open(fileName, 'r') as f:
             intellij_data = f.read()
@@ -73,9 +75,9 @@ def main():
         intellij_dict = xmltodict.parse(intellij_data)
         fcount = fcount + 1
         # print(intellij_dict)
-        addSrcType(intellij_dict)
-        addCombinedRules(intellij_dict)
-        addConType(intellij_dict)
+        output_dict = addSrcType(intellij_dict, output_dict)
+        output_dict = addCombinedRules(intellij_dict, output_dict)
+        output_dict = addConType(intellij_dict, output_dict)
         # print json.dumps(intellij_dict)
         result = bf.etree(output_dict, root=Element('classpath'))
 
